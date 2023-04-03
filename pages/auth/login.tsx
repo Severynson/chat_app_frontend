@@ -9,7 +9,6 @@ const Login: FC = () => {
   const { push } = useRouter();
 
   const onSubmit = async ({ email, password }: AuthFormValues) => {
-    console.log("On submit button pushed");
     try {
       const response = await fetch("http://localhost:8080/auth/login", {
         method: "POST",
@@ -48,6 +47,8 @@ const Login: FC = () => {
         !!responseData.userId
       ) {
         push("/");
+      } else {
+        throw new Error('Error while trying to login')
       }
     } catch (error) {
       alert("Error was ocured! " + error);

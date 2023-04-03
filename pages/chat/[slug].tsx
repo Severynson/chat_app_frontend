@@ -5,13 +5,18 @@ import {
   ChangeEventHandler,
   LegacyRef,
   MutableRefObject,
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import openSocket from "socket.io-client";
 import * as cookieParser from "cookie";
 import Cookies from "universal-cookie";
+import Message from "@/components/chat/Message";
+import InterlocutorHeader from "@/components/chat/InterlocutorHeader";
+import Head from "next/head";
 
 type Message = {
   _id: string;
@@ -29,44 +34,30 @@ interface ChatProps {
 }
 
 export default function Chat({ initialMessages, myId }: ChatProps) {
-  const {
-    query: { slug: interlocutorId },
-  } = useRouter();
-
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [message, setMessage] = useState("");
 
   const bottomRef: MutableRefObject<HTMLDivElement | undefined> = useRef();
-
   const cookies = new Cookies();
 
-  useEffect(() => {
-    const socketIoMessageSubscription = ({
-      message,
-      action,
-    }: {
-      message: Message;
-      action: string;
-    }) => {
-      console.log(message, action);
-      if (action === "send") {
-        setMessages((prevState) => {
-          console.log(message._id);
-          console.log(prevState.map(({ _id }) => _id));
-          if (prevState.map(({ _id }) => _id).includes(message._id)) {
-            return prevState;
-          } else return [...prevState, message];
-        });
+  const {
+    query: { slug: interlocutorId, interlocutorName },
+  } = useRouter();
 
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      }
-    };
+  const socketIoMessageSubscription = useCallback(
+    ({ message, action }: { message: Message; action: string }) => {
+      action === "send" && setMessages((prevState) => [...prevState, message]);
+    },
+    []
+  );
 
+  useMemo(() => {
     const socket = openSocket("http://localhost:8080");
     socket.on("messages", socketIoMessageSubscription);
-    return () => {
-      socket.off("message", socketIoMessageSubscription);
-    };
+  }, [socketIoMessageSubscription]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const messageHandler: ChangeEventHandler<HTMLTextAreaElement> = async (
@@ -88,21 +79,24 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
         message: {
           text: message,
           author: myId,
-          // time: new Date().toISOString(),
         },
       }),
     });
 
-    console.log(response.status);
+    if (response.status !== 201)
+      alert("Some trouble happened while sending your message");
   };
 
   return (
     <>
+      <Head>
+        <title>Chat with {interlocutorName}</title>
+      </Head>
       <header>
-        <div className="black-circle">
-          <h5 className="right">Name 1</h5>
-        </div>
-        <h3 className="right">#{interlocutorId}</h3>
+        <InterlocutorHeader
+          interlocutorId={interlocutorId as string}
+          interlocutorName={interlocutorName as string}
+        />
       </header>
 
       <main>
@@ -111,30 +105,16 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
           const hours = time.getHours();
           const minutes = time.getMinutes();
 
-          if (author._id === myId) {
-            return (
-              <div className="container darker" key={_id}>
-                <div className="black-circle">
-                  <h5>{author.name}</h5>
-                </div>
-                <p>{text}</p>
-                <span className="time">
-                  {hours}:{minutes < 9 ? `0${minutes}` : minutes}
-                </span>
-              </div>
-            );
-          } else {
-            return (
-              <div className="container right" key={_id}>
-                <p className="right">{text}</p>
-                <div className="black-circle">
-                  <h5 className="right">{author.name}</h5>
-                </div>
+          const convertedTime = `${hours}:${
+            minutes < 9 ? `0${minutes}` : minutes
+          }`;
 
-                <span className="time">{createdAt}</span>
-              </div>
-            );
-          }
+          return (
+            <Message
+              {...{ author, text, _id, convertedTime, myId }}
+              key={_id}
+            />
+          );
         })}
         <div ref={bottomRef as LegacyRef<HTMLDivElement>} />
       </main>
@@ -150,8 +130,7 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
             src={"https://cdn-icons-png.flaticon.com/512/6532/6532019.png"}
             height={36}
             width={36}
-            alt=""
-            className="image"
+            alt="send button image"
           />
         </button>
       </footer>
@@ -174,42 +153,6 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
         main {
           margin-top: 80px;
           margin-bottom: 60px;
-        }
-
-        .container {
-          border: 2px solid #dedede;
-          background-color: #f1f1f1;
-          border-radius: 5px;
-          padding: 10px;
-          margin: 10px 0;
-          display: flex;
-          gap: 12px;
-        }
-
-        .right {
-          justify-content: right;
-        }
-
-        .black-circle {
-          background-color: #222;
-          height: 64px;
-          width: 64px;
-          border-radius: 50%;
-        }
-
-        .black-circle h5 {
-          color: #f9f9f9;
-          text-align: center;
-        }
-
-        .darker {
-          border-color: #ccc;
-          background-color: #ddd;
-        }
-
-        .time {
-          color: #aaa;
-          align-self: end;
         }
 
         .input-footer {

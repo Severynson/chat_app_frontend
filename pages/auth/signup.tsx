@@ -9,26 +9,32 @@ const SignUp: FC = () => {
   const { push } = useRouter();
 
   const onSubmit = async ({ email, name, password }: AuthFormValues) => {
-    setIsLoading(true);
-    const response = await fetch("http://localhost:8080/chat", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, name, password }),
-    });
+    try {
+      setIsLoading(true);
+      const response = await fetch("http://localhost:8080/auth/signup", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, name, password }),
+      });
 
-    response && setIsLoading(false);
+      response && setIsLoading(false);
 
-    if (response.status === 201) {
-      setUserCreatedSuccessfully(true);
+      if (response.status === 201) {
+        setUserCreatedSuccessfully(true);
+        setTimeout(() => {
+          push("/auth/login");
+        }, 3000);
+      } else {
+        const errorMessage = (await response.json())?.message || 'Bad status code.';
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      alert("Some error happened during proces of the user creating! " + error);
       setTimeout(() => {
         push("/auth/login");
       }, 3000);
-    } else {
-      alert(
-        `Response status - ${response.status}. Some error happened during proces of the user creating!`
-      );
     }
   };
 
@@ -36,23 +42,26 @@ const SignUp: FC = () => {
     <>
       <div className="container">
         {isLoading && (
-          <h1 style={{ textAlign: "center" }}>User in proces of creating...</h1>
+          <h1 className="centered">User in proces of creating...</h1>
         )}
 
         {userCreatedSuccessfully && (
-          <h1 style={{ textAlign: "center" }}>
-            User has been created successfully!
-          </h1>
+          <h1 className="centered">User has been created successfully!</h1>
         )}
 
-        {!isLoading && <Auth mode="signup" {...{ onSubmit }} />}
+        {!isLoading && !userCreatedSuccessfully && (
+          <Auth mode="signup" {...{ onSubmit }} />
+        )}
       </div>
       <style jsx>{`
         .container {
           margin-top: 5%;
-          width: 100%;
           display: flex;
           justify-content: center;
+        }
+
+        .centered {
+          text-align: center;
         }
       `}</style>
     </>
