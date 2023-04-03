@@ -1,15 +1,17 @@
-import { GetServerSidePropsContext, NextPageContext } from "next";
+import { GetServerSidePropsContext } from "next";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import {
   ChangeEventHandler,
-  TextareaHTMLAttributes,
+  LegacyRef,
+  MutableRefObject,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import openSocket from "socket.io-client";
-import Cookies from "universal-cookie";
 import * as cookieParser from "cookie";
+import Cookies from "universal-cookie";
 
 type Message = {
   _id: string;
@@ -34,34 +36,38 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [message, setMessage] = useState("");
 
-  console.log(messages);
-  // useEffect(() => {
-  //   const socket = openSocket("http://localhost:8080");
+  const bottomRef: MutableRefObject<HTMLDivElement | undefined> = useRef();
 
-  //   socket.on("messages", ({ message }: { message: string }) => {
-  //     setMessages(message);
-  //   });
-  // }, [messages]);
+  const cookies = new Cookies();
 
-  // useEffect(() => {
-  //   const cookies = new Cookies();
+  useEffect(() => {
+    const socketIoMessageSubscription = ({
+      message,
+      action,
+    }: {
+      message: Message;
+      action: string;
+    }) => {
+      console.log(message, action);
+      if (action === "send") {
+        setMessages((prevState) => {
+          console.log(message._id);
+          console.log(prevState.map(({ _id }) => _id));
+          if (prevState.map(({ _id }) => _id).includes(message._id)) {
+            return prevState;
+          } else return [...prevState, message];
+        });
 
-  //   if (!!cookies.get("userId") && !!interlocutorId)
-  //     fetch("http://localhost:8080/chat", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         userId: cookies.get("userId"),
-  //         interlocutorId: interlocutorId,
-  //       }),
-  //     })
-  //       .then((response) => response.json())
-  //       .then((resData) => {
-  //         setMessages(resData.messages);
-  //       });
-  // }, [interlocutorId]);
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    };
+
+    const socket = openSocket("http://localhost:8080");
+    socket.on("messages", socketIoMessageSubscription);
+    return () => {
+      socket.off("message", socketIoMessageSubscription);
+    };
+  }, [messages]);
 
   const messageHandler: ChangeEventHandler<HTMLTextAreaElement> = async (
     event
@@ -75,33 +81,23 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: "Bearer " + cookies.get("token"),
       },
       body: JSON.stringify({
         interlocutorId,
-        userId: myId,
         message: {
           text: message,
           author: myId,
-          time: new Date().toISOString(),
+          // time: new Date().toISOString(),
         },
       }),
     });
 
-    console.log(response.body);
+    console.log(response.status);
   };
 
   return (
     <>
-      {/* <h1>Chat with: </h1>
-      <button
-        onClick={() => {
-          fetch("http://localhost:8080/chat");
-        }}
-      >
-        Click to show it! {interlocutorId}
-      </button>
-      <p>{messages}</p> */}
-
       <header>
         <div className="black-circle">
           <h5 className="right">Name 1</h5>
@@ -128,15 +124,19 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
               </div>
             );
           } else {
-            <div className="container right" key={_id}>
-              <div className="black-circle">
-                <h5 className="right">{author.name}</h5>
+            return (
+              <div className="container right" key={_id}>
+                <p className="right">{text}</p>
+                <div className="black-circle">
+                  <h5 className="right">{author.name}</h5>
+                </div>
+
+                <span className="time">{createdAt}</span>
               </div>
-              <p className="right">{text}</p>
-              <span className="time">{createdAt}</span>
-            </div>;
+            );
           }
         })}
+        <div ref={bottomRef as LegacyRef<HTMLDivElement>} />
       </main>
 
       <footer className="input-footer">
@@ -173,6 +173,7 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
 
         main {
           margin-top: 80px;
+          margin-bottom: 60px;
         }
 
         .container {
@@ -245,19 +246,16 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
 
 export async function getServerSideProps(context: GetServerSidePropsContext) {
   const { cookie } = context.req.headers;
-  const { userId: myId } = cookieParser.parse(cookie as string);
+  const { userId: myId, token } = cookieParser.parse(cookie as string);
   const { slug: interlocutorId } = context.query;
-
-  // const response = await fetch("http://localhost:8080/user/all-users");
-  // const allUsers: Chat[] = await response.json();
 
   const response = await fetch("http://localhost:8080/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: "Bearer " + token,
     },
     body: JSON.stringify({
-      userId: myId,
       interlocutorId: interlocutorId,
     }),
   });

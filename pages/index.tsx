@@ -115,17 +115,47 @@ export default function Home({ chats }: HomeProps) {
 }
 
 export async function getServerSideProps(context: GetServerSidePropsContext) {
-  const { cookie } = context.req.headers;
-  const { userId: myId } = cookieParser.parse(cookie as string);
+  let { cookie } = context.req.headers;
+  if (typeof cookie !== "string") {
+    cookie = "";
+  }
 
-  const response = await fetch("http://localhost:8080/user/all-users");
-  const allUsers: Chat[] = await response.json();
+  const { userId: myId, token } = cookieParser.parse(cookie as string);
 
-  const usersExceptMe = allUsers.filter((chat) => chat._id !== myId);
+  let returnObject;
 
-  return {
-    props: {
-      chats: usersExceptMe,
-    },
-  };
+  try {
+    const AllUsersResponse = await fetch(
+      "http://localhost:8080/user/all-users",
+      {
+        headers: {
+          Authorization: "Bearer " + token,
+        },
+      }
+    );
+    const allUsersDocs: Chat[] = await AllUsersResponse.json();
+
+    const usersExceptMe = allUsersDocs.filter((chat) => chat._id !== myId);
+
+    returnObject = {
+      props: {
+        chats: usersExceptMe,
+      },
+    };
+  } catch (error) {
+    console.log(error);
+
+    console.log("myId doesnt comes here ====> ", myId);
+
+    // if (!myId) {
+    returnObject = {
+      redirect: {
+        destination: "/auth/login",
+        permanent: false,
+      },
+      // };
+    };
+  }
+
+  return returnObject;
 }

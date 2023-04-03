@@ -9,6 +9,7 @@ const Login: FC = () => {
   const { push } = useRouter();
 
   const onSubmit = async ({ email, password }: AuthFormValues) => {
+    console.log("On submit button pushed");
     try {
       const response = await fetch("http://localhost:8080/auth/login", {
         method: "POST",
@@ -17,6 +18,8 @@ const Login: FC = () => {
         },
         body: JSON.stringify({ email, password }),
       });
+
+      console.log("response +++ => ", response);
 
       if (response.status === 422) {
         throw new Error("Validation failed.");
@@ -28,11 +31,15 @@ const Login: FC = () => {
 
       const responseData = await response.json();
 
-      cookies.set("token", responseData.token);
-      //   localStorage.setItem("token", );
-      cookies.set("userId", responseData.userId);
+      cookies.remove("token");
+      cookies.remove("userId");
+      cookies.remove("expiryDate");
+
       const remainingMilliseconds = 60 * 60 * 1000;
       const expiryDate = new Date(new Date().getTime() + remainingMilliseconds);
+
+      cookies.set("token", responseData.token);
+      cookies.set("userId", responseData.userId);
       cookies.set("expiryDate", expiryDate.toISOString());
 
       if (
@@ -44,7 +51,6 @@ const Login: FC = () => {
       }
     } catch (error) {
       alert("Error was ocured! " + error);
-      throw error;
     }
   };
 
