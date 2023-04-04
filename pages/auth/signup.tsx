@@ -1,4 +1,5 @@
 import Auth, { AuthFormValues } from "@/components/auth";
+import responseErrorsHandler from "@/helpers/responseErrorsHandler";
 import { useRouter } from "next/router";
 import { FC, useState } from "react";
 
@@ -27,14 +28,11 @@ const SignUp: FC = () => {
           push("/auth/login");
         }, 3000);
       } else {
-        const errorMessage = (await response.json())?.message || 'Bad status code.';
-        throw new Error(errorMessage);
+        const error = await response.json();
+        responseErrorsHandler(error);
       }
     } catch (error) {
-      alert("Some error happened during proces of the user creating! " + error);
-      setTimeout(() => {
-        push("/auth/login");
-      }, 3000);
+      alert(error);
     }
   };
 

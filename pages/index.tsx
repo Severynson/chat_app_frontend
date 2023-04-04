@@ -4,6 +4,9 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 import Cookies from "universal-cookie";
 import * as cookieParser from "cookie";
+import responseErrorsHandler, {
+  ResponseError,
+} from "@/helpers/responseErrorsHandler";
 
 interface Chat {
   _id: string;
@@ -130,9 +133,17 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
         },
       }
     );
-    const allUsersDocs: Chat[] = await AllUsersResponse.json();
 
-    const usersExceptMe = allUsersDocs.filter((chat) => chat._id !== myId);
+    const allUsers: Chat[] | ResponseError = await AllUsersResponse.json();
+
+    if (AllUsersResponse.status !== 200) {
+      const error = allUsers as ResponseError;
+      responseErrorsHandler(error);
+    }
+
+    const usersExceptMe = (allUsers as Chat[]).filter(
+      (chat) => chat._id !== myId
+    );
 
     returnObject = {
       props: {
@@ -141,8 +152,6 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     };
   } catch (error) {
     console.log(error);
-
-    console.log("myId doesnt comes here ====> ", myId);
 
     returnObject = {
       redirect: {
