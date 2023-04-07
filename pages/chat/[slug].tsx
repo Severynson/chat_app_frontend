@@ -29,12 +29,15 @@ type Message = {
 };
 
 interface ChatProps {
-  initialMessages: Message[];
-  myId: string;
+  chat: {
+    title: string;
+    messages: Message[];
+  };
+  userId: string;
 }
 
-export default function Chat({ initialMessages, myId }: ChatProps) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+export default function Chat({ chat, userId }: ChatProps) {
+  const [messages, setMessages] = useState<Message[]>(chat.messages);
   const [message, setMessage] = useState("");
 
   const bottomRef: MutableRefObject<HTMLDivElement | undefined> = useRef();
@@ -78,7 +81,7 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
         interlocutorId,
         message: {
           text: message,
-          author: myId,
+          author: userId,
         },
       }),
     });
@@ -111,7 +114,7 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
 
           return (
             <Message
-              {...{ author, text, _id, convertedTime, myId }}
+              {...{ author, text, _id, convertedTime, userId }}
               key={_id}
             />
           );
@@ -189,25 +192,22 @@ export default function Chat({ initialMessages, myId }: ChatProps) {
 
 export async function getServerSideProps(context: GetServerSidePropsContext) {
   const { cookie } = context.req.headers;
-  const { userId: myId, token } = cookieParser.parse(cookie as string);
-  const { slug: interlocutorId } = context.query;
+  const { token } = cookieParser.parse(cookie as string);
+  const { slug: chatmateId } = context.query;
 
-  const response = await fetch("http://localhost:8080/chat", {
-    method: "POST",
+  const response = await fetch(`http://localhost:8080/chat/${chatmateId}`, {
     headers: {
       "Content-Type": "application/json",
       Authorization: "Bearer " + token,
     },
-    body: JSON.stringify({
-      interlocutorId: interlocutorId,
-    }),
   });
-  const { messages } = await response.json();
+
+  const { chat, userId } = await response.json();
 
   return {
     props: {
-      initialMessages: messages,
-      myId,
+      chat,
+      userId,
     },
   };
 }

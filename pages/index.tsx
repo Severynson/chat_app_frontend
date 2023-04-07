@@ -3,7 +3,6 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import Cookies from "universal-cookie";
-import * as cookieParser from "cookie";
 import responseErrorsHandler, {
   ResponseError,
 } from "@/helpers/responseErrorsHandler";
@@ -25,8 +24,8 @@ export default function Home({ chats }: HomeProps) {
     if (!cookies.get("token")) push("/auth/login");
   }, [push]);
 
-  const openChatWithUser = (userId: string, userName: string) => {
-    push(`/chat/${userId}?interlocutorName=${userName}`);
+  const openChatWithUser = (chatmateId: string, mateName: string) => {
+    push(`/chat/${chatmateId}?interlocutorName=${mateName}`);
   };
 
   return (
@@ -115,18 +114,15 @@ export default function Home({ chats }: HomeProps) {
 }
 
 export async function getServerSideProps(context: GetServerSidePropsContext) {
-  let { cookie } = context.req.headers;
-  if (typeof cookie !== "string") {
-    cookie = "";
-  }
+  const { token } = context.req.cookies;
 
-  const { userId: myId, token } = cookieParser.parse(cookie as string);
+  console.log("tokenIs: ", token);
 
   let returnObject;
 
   try {
-    const AllUsersResponse = await fetch(
-      "http://localhost:8080/user/all-users",
+    const response = await fetch(
+      "http://localhost:8080/user/all-available-chatmates",
       {
         headers: {
           Authorization: "Bearer " + token,
@@ -134,20 +130,16 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       }
     );
 
-    const allUsers: Chat[] | ResponseError = await AllUsersResponse.json();
+    const data: Chat[] | ResponseError = await response.json();
 
-    if (AllUsersResponse.status !== 200) {
-      const error = allUsers as ResponseError;
+    if (response.status !== 200) {
+      const error = data as ResponseError;
       responseErrorsHandler(error);
     }
 
-    const usersExceptMe = (allUsers as Chat[]).filter(
-      (chat) => chat._id !== myId
-    );
-
     returnObject = {
       props: {
-        chats: usersExceptMe,
+        chats: data,
       },
     };
   } catch (error) {

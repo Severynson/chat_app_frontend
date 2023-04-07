@@ -6,13 +6,19 @@ interface MessageProps {
     name: string;
   };
   convertedTime: string;
-  myId: string;
+  userId: string;
 }
 
-const Message = ({ _id, text, author, convertedTime, myId }: MessageProps) => {
+const Message = ({
+  _id,
+  text,
+  author,
+  convertedTime,
+  userId,
+}: MessageProps) => {
   return (
     <>
-      {author._id === myId ? (
+      {author._id === userId ? (
         <div className="container darker" key={_id}>
           <div className="black-circle">
             <h5>{author.name}</h5>

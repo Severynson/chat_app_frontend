@@ -23,7 +23,6 @@ const Login: FC = () => {
 
       if (response.status === 201) {
         cookies.remove("token");
-        cookies.remove("userId");
         cookies.remove("expiryDate");
 
         const remainingMilliseconds = 60 * 60 * 1000;
@@ -32,7 +31,6 @@ const Login: FC = () => {
         );
 
         cookies.set("token", responseData.token);
-        cookies.set("userId", responseData.userId);
         cookies.set("expiryDate", expiryDate.toISOString());
 
         push("/");
